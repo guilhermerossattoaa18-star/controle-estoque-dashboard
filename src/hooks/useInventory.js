@@ -1,122 +1,159 @@
 import { useEffect, useMemo, useState } from "react";
-import { initialMovements, initialProducts } from "../data/initialData";
-
-const PRODUCTS_KEY = "inventory_products";
-const MOVEMENTS_KEY = "inventory_movements";
+import { supabase } from "../lib/supabase";
 
 export function useInventory() {
-  const [products, setProducts] = useState(() => {
-    const saved = localStorage.getItem(PRODUCTS_KEY);
-    return saved ? JSON.parse(saved) : initialProducts;
-  });
+  const [products, setProducts] = useState([]);
+  const [movements, setMovements] = useState([]);
 
-  const [movements, setMovements] = useState(() => {
-    const saved = localStorage.getItem(MOVEMENTS_KEY);
-    return saved ? JSON.parse(saved) : initialMovements;
-  });
+  async function getUser() {
+    const { data } = await supabase.auth.getUser();
+    return data.user;
+  }
+
+  async function loadProducts() {
+    const { data } = await supabase
+      .from("produtos")
+      .select("*")
+      .order("id", { ascending: false });
+
+    setProducts(
+      (data || []).map((p) => ({
+        id: p.id,
+        code: p.codigo,
+        name: p.nome,
+        unit: p.unidade,
+        quantity: Number(p.quantidade),
+        price: Number(p.valor_unitario),
+        minStock: Number(p.estoque_minimo),
+      }))
+    );
+  }
+
+  async function loadMovements() {
+    const { data } = await supabase
+      .from("movimentacoes")
+      .select(`
+        id,
+        produto_id,
+        tipo,
+        quantidade,
+        valor_unitario,
+        created_at,
+        produtos ( nome )
+      `)
+      .order("id", { ascending: false });
+
+    setMovements(
+      (data || []).map((m) => ({
+        id: m.id,
+        productId: m.produto_id,
+        productName: m.produtos?.nome || "Produto removido",
+        type: m.tipo,
+        quantity: Number(m.quantidade),
+        price: Number(m.valor_unitario),
+        date: m.created_at,
+      }))
+    );
+  }
 
   useEffect(() => {
-    localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
-  }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem(MOVEMENTS_KEY, JSON.stringify(movements));
-  }, [movements]);
+    loadProducts();
+    loadMovements();
+  }, []);
 
   const summary = useMemo(() => {
-    const totalProducts = products.length;
-    const totalQuantity = products.reduce((sum, p) => sum + Number(p.quantity), 0);
-    const totalValue = products.reduce(
-      (sum, p) => sum + Number(p.quantity) * Number(p.price),
-      0
-    );
-    const lowStock = products.filter(
-      (p) => Number(p.quantity) <= Number(p.minStock)
-    ).length;
-
-    return { totalProducts, totalQuantity, totalValue, lowStock };
+    return {
+      totalProducts: products.length,
+      totalQuantity: products.reduce((sum, p) => sum + p.quantity, 0),
+      totalValue: products.reduce((sum, p) => sum + p.quantity * p.price, 0),
+      lowStock: products.filter((p) => p.quantity <= p.minStock).length,
+    };
   }, [products]);
 
-  function addProduct(data) {
-    const product = {
-      id: crypto.randomUUID(),
-      code: data.code,
-      name: data.name,
-      unit: data.unit,
-      quantity: Number(data.quantity),
-      price: Number(data.price),
-      minStock: Number(data.minStock),
-    };
+  async function addProduct(product) {
+    const user = await getUser();
 
-    setProducts((prev) => [product, ...prev]);
+    await supabase.from("produtos").insert([
+      {
+        user_id: user.id,
+        codigo: product.code,
+        nome: product.name,
+        unidade: product.unit,
+        quantidade: Number(product.quantity),
+        valor_unitario: Number(product.price),
+        estoque_minimo: Number(product.minStock || 0),
+      },
+    ]);
+
+    await loadProducts();
   }
 
-  function deleteProduct(id) {
-    setProducts((prev) => prev.filter((product) => product.id !== id));
-    setMovements((prev) => prev.filter((movement) => movement.productId !== id));
+  async function deleteProduct(id) {
+    await supabase.from("produtos").delete().eq("id", id);
+    await loadProducts();
+    await loadMovements();
   }
 
-  function registerMovement(productId, type, quantity) {
-    const product = products.find((item) => item.id === productId);
+  async function updateProduct(product) {
+    await supabase
+      .from("produtos")
+      .update({
+        codigo: product.code,
+        nome: product.name,
+        unidade: product.unit,
+        quantidade: Number(product.quantity),
+        valor_unitario: Number(product.price),
+        estoque_minimo: Number(product.minStock || 0),
+      })
+      .eq("id", product.id);
+
+    await loadProducts();
+  }
+
+  async function registerMovement(productId, type, quantity) {
+    const user = await getUser();
+    const product = products.find((item) => String(item.id) === String(productId));
 
     if (!product) return;
 
     const amount = Number(quantity);
 
-    if (type === "saida" && Number(product.quantity) < amount) {
+    if (type === "saida" && product.quantity < amount) {
       alert("Estoque insuficiente.");
       return;
     }
 
-    setProducts((prev) =>
-      prev.map((item) =>
-        item.id === productId
-          ? {
-              ...item,
-              quantity:
-                type === "entrada"
-                  ? Number(item.quantity) + amount
-                  : Number(item.quantity) - amount,
-            }
-          : item
-      )
-    );
+    const newQuantity =
+      type === "entrada"
+        ? product.quantity + amount
+        : product.quantity - amount;
 
-    const movement = {
-      id: crypto.randomUUID(),
-      productId,
-      productName: product.name,
-      type,
-      quantity: amount,
-      price: Number(product.price),
-      date: new Date().toISOString(),
-    };
+    await supabase
+      .from("produtos")
+      .update({ quantidade: newQuantity })
+      .eq("id", product.id);
 
-    setMovements((prev) => [movement, ...prev]);
+    await supabase.from("movimentacoes").insert([
+      {
+        user_id: user.id,
+        produto_id: product.id,
+        tipo: type,
+        quantidade: amount,
+        valor_unitario: product.price,
+      },
+    ]);
+
+    await loadProducts();
+    await loadMovements();
   }
 
-  function updateProduct(updatedProduct) {
-  setProducts((prev) =>
-    prev.map((product) =>
-      product.id === updatedProduct.id
-        ? {
-            ...product,
-            ...updatedProduct,
-            quantity: Number(updatedProduct.quantity),
-            price: Number(updatedProduct.price),
-            minStock: Number(updatedProduct.minStock),
-          }
-        : product
-    )
-  );
-}
-function resetData() {
-  setProducts([]);
-  setMovements([]);
-  localStorage.removeItem(PRODUCTS_KEY);
-  localStorage.removeItem(MOVEMENTS_KEY);
-}
+  async function resetData() {
+    await supabase.from("movimentacoes").delete().neq("id", 0);
+    await supabase.from("produtos").delete().neq("id", 0);
 
+    await loadProducts();
+    await loadMovements();
+  }
 
   return {
     products,
@@ -124,8 +161,8 @@ function resetData() {
     summary,
     addProduct,
     deleteProduct,
-    registerMovement,
     updateProduct,
+    registerMovement,
     resetData,
   };
 }

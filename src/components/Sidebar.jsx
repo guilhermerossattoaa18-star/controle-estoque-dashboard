@@ -1,4 +1,4 @@
-export function Sidebar({ theme, onToggleTheme, onResetData }) {
+export function Sidebar({ theme, onToggleTheme, onResetData, onLogout }) {
   return (
     <aside className="sidebar">
       <div>
@@ -26,6 +26,9 @@ export function Sidebar({ theme, onToggleTheme, onResetData }) {
         <button className="ghost" onClick={onResetData}>
           Limpar dados
         </button>
+        <button className="ghost" onClick={onLogout}>
+  Sair
+</button>
       </div>
     </aside>
   );

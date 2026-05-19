@@ -11,8 +11,26 @@ import { ToastContainer } from "./components/ToastContainer";
 import { ConfirmModal } from "./components/ConfirmModal";
 import { useInventory } from "./hooks/useInventory";
 import { useToast } from "./hooks/useToast";
+import { supabase } from "./lib/supabase";
+import { Auth } from "./components/Auth";
+
+
 
 export default function App() {
+  const [session, setSession] = useState(null);
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data }) => {
+    setSession(data.session);
+  });
+
+  const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    setSession(session);
+  });
+
+  return () => listener.subscription.unsubscribe();
+}, []);
+  console.log(supabase);
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem("inventory_theme") || "dark";
   });
@@ -75,10 +93,17 @@ const [productToDelete, setProductToDelete] = useState(null);
     registerMovement(productId, type, quantity);
     showToast("Movimentação registrada.");
   }
+    if (!session) {
+  return <Auth onAuth={() => window.location.reload()} />;
+  }
 
   return (
     <div className="shell">
       <Sidebar
+      onLogout={async () => {
+  await supabase.auth.signOut();
+  setSession(null);
+}}
         theme={theme}
         onToggleTheme={toggleTheme}
         onResetData={() => setResetModalOpen(true)}
@@ -140,4 +165,5 @@ const [productToDelete, setProductToDelete] = useState(null);
     </div>
   );
 }
+
 
