@@ -13,6 +13,7 @@ import { useInventory } from "./hooks/useInventory";
 import { useToast } from "./hooks/useToast";
 import { supabase } from "./lib/supabase";
 import { Auth } from "./components/Auth";
+import { PricingCalculator } from "./components/PricingCalculator";
 
 
 
@@ -130,7 +131,9 @@ const [productToDelete, setProductToDelete] = useState(null);
 
         <section className="content-grid page-section">
           <ProductForm onAddProduct={handleAddProduct} />
-
+          
+          <PricingCalculator />
+          
           <section id="movimentacoes">
             <MovementHistory movements={movements} />
           </section>
