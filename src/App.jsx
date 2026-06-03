@@ -9,40 +9,18 @@ import { ChartsPanel } from "./components/ChartsPanel";
 import { ExportActions } from "./components/ExportActions";
 import { ToastContainer } from "./components/ToastContainer";
 import { ConfirmModal } from "./components/ConfirmModal";
+import { Auth } from "./components/Auth";
+import { PricingCalculator } from "./components/PricingCalculator";
 import { useInventory } from "./hooks/useInventory";
 import { useToast } from "./hooks/useToast";
 import { supabase } from "./lib/supabase";
-import { Auth } from "./components/Auth";
-import { PricingCalculator } from "./components/PricingCalculator";
-
-
 
 export default function App() {
   const [session, setSession] = useState(null);
-
-useEffect(() => {
-  supabase.auth.getSession().then(({ data }) => {
-    setSession(data.session);
-  });
-
-  const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-    setSession(session);
-  });
-
-  return () => listener.subscription.unsubscribe();
-}, []);
-  console.log(supabase);
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem("inventory_theme") || "dark";
-  });
-
-const [resetModalOpen, setResetModalOpen] = useState(false);
-const [productToDelete, setProductToDelete] = useState(null);
-
-import { useState } from "react";
-
-const [menuOpen, setMenuOpen] = useState(false);
-
+  const [theme, setTheme] = useState(() => localStorage.getItem("inventory_theme") || "dark");
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const { toasts, showToast } = useToast();
 
@@ -56,6 +34,18 @@ const [menuOpen, setMenuOpen] = useState(false);
     updateProduct,
     resetData,
   } = useInventory();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -79,15 +69,14 @@ const [menuOpen, setMenuOpen] = useState(false);
   }
 
   function handleDeleteProduct(id) {
-  setProductToDelete(id);
+    setProductToDelete(id);
   }
 
-  function confirmDeleteProduct() { 
-  deleteProduct(productToDelete);
-  setProductToDelete(null);
-  showToast("Produto excluído.");
+  function confirmDeleteProduct() {
+    deleteProduct(productToDelete);
+    setProductToDelete(null);
+    showToast("Produto excluído.");
   }
-
 
   function handleUpdateProduct(product) {
     updateProduct(product);
@@ -98,17 +87,26 @@ const [menuOpen, setMenuOpen] = useState(false);
     registerMovement(productId, type, quantity);
     showToast("Movimentação registrada.");
   }
-    if (!session) {
-  return <Auth onAuth={() => window.location.reload()} />;
+
+  if (!session) {
+    return <Auth onAuth={() => window.location.reload()} />;
   }
 
   return (
     <div className="shell">
+      <button
+        className="mobile-menu-btn"
+        onClick={() => setMenuOpen((prev) => !prev)}
+      >
+        {menuOpen ? "✕" : "☰"}
+      </button>
+
       <Sidebar
-      onLogout={async () => {
-  await supabase.auth.signOut();
-  setSession(null);
-}}
+        className={menuOpen ? "open" : ""}
+        onLogout={async () => {
+          await supabase.auth.signOut();
+          setSession(null);
+        }}
         theme={theme}
         onToggleTheme={toggleTheme}
         onResetData={() => setResetModalOpen(true)}
@@ -122,22 +120,14 @@ const [menuOpen, setMenuOpen] = useState(false);
         </section>
 
         <section id="relatorios" className="page-section">
-          <ExportActions
-            products={products}
-            movements={movements}
-          />
-
-          <ChartsPanel
-            products={products}
-            movements={movements}
-          />
+          <ExportActions products={products} movements={movements} />
+          <ChartsPanel products={products} movements={movements} />
         </section>
 
         <section className="content-grid page-section">
           <ProductForm onAddProduct={handleAddProduct} />
-          
           <PricingCalculator />
-          
+
           <section id="movimentacoes">
             <MovementHistory movements={movements} />
           </section>
@@ -162,13 +152,14 @@ const [menuOpen, setMenuOpen] = useState(false);
         onConfirm={handleResetData}
         onCancel={() => setResetModalOpen(false)}
       />
+
       <ConfirmModal
-  open={!!productToDelete}
-  title="Excluir produto?"
-  message="Essa ação também removerá as movimentações desse produto."
-  onConfirm={confirmDeleteProduct}
-  onCancel={() => setProductToDelete(null)}
-/>
+        open={!!productToDelete}
+        title="Excluir produto?"
+        message="Essa ação também removerá as movimentações desse produto."
+        onConfirm={confirmDeleteProduct}
+        onCancel={() => setProductToDelete(null)}
+      />
     </div>
   );
 }

@@ -1,16 +1,21 @@
-export function Sidebar({ theme, onToggleTheme, onResetData, onLogout }) {
+export function Sidebar({
+  theme,
+  onToggleTheme,
+  onResetData,
+  onLogout,
+  className = "",
+}) {
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${className}`}>
       <div>
         <div className="brand">
           <div className="brand-icon">CE</div>
+
           <div>
             <strong>Controle Estoque</strong>
             <span>Dashboard</span>
           </div>
         </div>
-
-<aside className={`sidebar ${menuOpen ? "open" : ""}`}></aside>
 
         <nav className="nav">
           <a href="#dashboard">Dashboard</a>
@@ -22,15 +27,24 @@ export function Sidebar({ theme, onToggleTheme, onResetData, onLogout }) {
 
       <div className="sidebar-actions">
         <button onClick={onToggleTheme}>
-          {theme === "dark" ? "Tema claro" : "Tema escuro"}
+          {theme === "dark"
+            ? "Tema claro"
+            : "Tema escuro"}
         </button>
 
-        <button className="ghost" onClick={onResetData}>
+        <button
+          className="ghost"
+          onClick={onResetData}
+        >
           Limpar dados
         </button>
-        <button className="ghost" onClick={onLogout}>
-  Sair
-</button>
+
+        <button
+          className="ghost"
+          onClick={onLogout}
+        >
+          Sair
+        </button>
       </div>
     </aside>
   );
