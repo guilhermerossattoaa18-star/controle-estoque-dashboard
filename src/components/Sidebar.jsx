@@ -10,6 +10,8 @@ export function Sidebar({ theme, onToggleTheme, onResetData, onLogout }) {
           </div>
         </div>
 
+<aside className={`sidebar ${menuOpen ? "open" : ""}`}></aside>
+
         <nav className="nav">
           <a href="#dashboard">Dashboard</a>
           <a href="#produtos">Produtos</a>

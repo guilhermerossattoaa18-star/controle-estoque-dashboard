@@ -39,6 +39,10 @@ useEffect(() => {
 const [resetModalOpen, setResetModalOpen] = useState(false);
 const [productToDelete, setProductToDelete] = useState(null);
 
+import { useState } from "react";
+
+const [menuOpen, setMenuOpen] = useState(false);
+
 
   const { toasts, showToast } = useToast();
 

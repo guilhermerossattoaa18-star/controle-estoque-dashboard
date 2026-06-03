@@ -6,6 +6,12 @@ export function Header() {
         <h1>Dashboard de Estoque</h1>
       </div>
 
+<button
+  className="mobile-menu-btn"
+  onClick={() => setMenuOpen(!menuOpen)}
+>
+  ☰
+</button>
       <span className="status">Online</span>
     </header>
   );
